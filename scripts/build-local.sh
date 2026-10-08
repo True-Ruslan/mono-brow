@@ -15,7 +15,7 @@ xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Rel
   build
 
 codesign --verify --deep --strict "$APP"
-codesign -dv "$APP" 2>&1 | grep -qF "Authority=$IDENTITY" || {
+codesign -dvv "$APP" 2>&1 | grep -F "Authority=$IDENTITY" > /dev/null || {
   echo "Приложение подписано не сертификатом \"$IDENTITY\"." >&2
   exit 1
 }

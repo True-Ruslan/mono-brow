@@ -1,0 +1,57 @@
+name: Upstream watch
+# Открывает issue, когда в TheBoredTeam/boring.notch выходит релиз с изменениями, которых нет в main форка.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM: TheBoredTeam/boring.notch
+      # Файлы, влияющие на права, сеть, зависимости и поставляемые бинарники
+      SENSITIVE_FILES: '(Info\.plist|\.entitlements|Package\.resolved|project\.pbxproj)$|^(mediaremote-adapter|BoringNotchXPCHelper|updater|\.github)/'
+      # Добавленные строки с сетевыми вызовами, запуском процессов и доступом к системе
+      SENSITIVE_CODE: '^\+.*(https?://|URLSession|NWConnection|NWListener|webSocketTask\(|socket\(|Process\(|NSAppleScript|dlopen|CGEvent\.tapCreate|addGlobalMonitor|NSPasteboard|SecItem|Keychain)'
+    steps:
+      - name: Open issue for new upstream release
+        run: |
+          set -euo pipefail
+          tag=$(gh release list -R "$UPSTREAM" -L 10 --json tagName --jq '[.[] | select(.tagName != "nightly")][0].tagName')
+          title="Upstream release $tag"
+
+          if gh issue list -R "$GITHUB_REPOSITORY" --state all --search "\"$title\" in:title" \
+               --json title --jq '.[].title' | grep -qxF "$title"; then
+            echo "Issue for $tag already exists"; exit 0
+          fi
+
+          head="TheBoredTeam:boring.notch:$tag"
+          gh api "repos/$GITHUB_REPOSITORY/compare/main...$head" > compare.json
+          if [ "$(jq .ahead_by compare.json)" = 0 ]; then
+            echo "main already contains $tag"; exit 0
+          fi
+
+          {
+            echo "Релиз: https://github.com/$UPSTREAM/releases/tag/$tag"
+            echo "Сравнение с main: https://github.com/$GITHUB_REPOSITORY/compare/main...$head"
+            echo
+            echo "### Чувствительные файлы"
+            jq -r --arg re "$SENSITIVE_FILES" \
+              '.files[] | select(.filename | test($re)) | "- `\(.filename)` (\(.status))"' compare.json | head -n 100
+            echo
+            echo "### Подозрительные добавленные строки"
+            jq -r --arg re "$SENSITIVE_CODE" \
+              '.files[] | select(.filename | test("\\.(swift|mm?|h|c|pl|sh|py)$")) | .filename as $f | (.patch // "" | split("\n")[] | select(test($re))) | "- `\($f)`: \(.[1:] | gsub("^\\s+"; "") | .[0:160])"' compare.json | head -n 100
+            echo
+            echo "### Коммиты ($(jq .ahead_by compare.json))"
+            jq -r '.commits[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"' compare.json | head -n 200
+          } > body.md
+
+          gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body-file body.md

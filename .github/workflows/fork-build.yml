@@ -1,0 +1,62 @@
+name: Fork build
+# Собирает приложение, подписанное самоподписанным сертификатом из секретов, и публикует его в Releases.
+# Запуск: git tag v2.7.3-mono.1 && git push origin v2.7.3-mono.1
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      SIGNING_IDENTITY: Mono Brow Local
+      XCODE_VERSION: "26.6"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app"
+
+      - name: Import signing certificate
+        env:
+          SIGNING_CERT_P12: ${{ secrets.SIGNING_CERT_P12 }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KC_PASS=$(uuidgen)
+          echo -n "$SIGNING_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          # Самоподписанный сертификат должен быть доверенным, иначе Xcode его не увидит
+          security find-certificate -c "$SIGNING_IDENTITY" -p "$KC" > "$RUNNER_TEMP/cert.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$RUNNER_TEMP/cert.pem"
+          security find-identity -v -p codesigning "$KC"
+
+      - name: Build
+        run: scripts/build-local.sh "$SIGNING_IDENTITY"
+
+      - name: Package
+        run: ditto -c -k --keepParent "build/Build/Products/Release/Boring Notch.app" BoringNotch.zip
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: BoringNotch.zip
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" BoringNotch.zip --title "$GITHUB_REF_NAME" --notes "Commit $GITHUB_SHA"

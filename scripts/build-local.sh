@@ -16,13 +16,13 @@ xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Rel
   build
 
 codesign --verify --deep --strict "$APP"
-codesign -dvv "$APP" 2>&1 | grep -F "Authority=$IDENTITY" > /dev/null || {
+codesign -dvv "$APP" 2>&1 | grep -qF "Authority=$IDENTITY" || {
   echo "Приложение подписано не сертификатом \"$IDENTITY\"." >&2
   exit 1
 }
 # get-task-allow позволяет подключаться к процессу отладчиком и внедрять код
 for bundle in "$APP" "$APP"/Contents/XPCServices/*.xpc; do
-  if codesign -d --entitlements - "$bundle" 2>/dev/null | grep -F get-task-allow > /dev/null; then
+  if codesign -d --entitlements - "$bundle" 2>/dev/null | grep -qF get-task-allow; then
     echo "В подписи $bundle осталось отладочное entitlement get-task-allow." >&2
     exit 1
   fi

@@ -35,7 +35,6 @@ jobs:
           KC_PASS=$(uuidgen)
           echo -n "$SIGNING_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
           security create-keychain -p "$KC_PASS" "$KC"
-          security set-keychain-settings -lut 21600 "$KC"
           security unlock-keychain -p "$KC_PASS" "$KC"
           security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
           rm "$RUNNER_TEMP/cert.p12"
@@ -44,7 +43,6 @@ jobs:
           # Самоподписанный сертификат должен быть доверенным, иначе Xcode его не увидит
           security find-certificate -c "$SIGNING_IDENTITY" -p "$KC" > "$RUNNER_TEMP/cert.pem"
           sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$RUNNER_TEMP/cert.pem"
-          security find-identity -v -p codesigning "$KC"
 
       - name: Build
         run: scripts/build-local.sh "$SIGNING_IDENTITY"

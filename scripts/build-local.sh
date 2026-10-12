@@ -20,6 +20,13 @@ codesign -dvv "$APP" 2>&1 | grep -qF "Authority=$IDENTITY" || {
   echo "Приложение подписано не сертификатом \"$IDENTITY\"." >&2
   exit 1
 }
+# Самоподписанный сертификат без Apple Team ID требует исключения для загрузки MediaRemoteAdapter.framework.
+if ! codesign -d --entitlements - "$APP" 2>/dev/null \
+  | plutil -extract 'com\.apple\.security\.cs\.disable-library-validation' raw -expect bool -o - - \
+  | grep -qx true; then
+  echo "В подписи приложения отсутствует disable-library-validation=true." >&2
+  exit 1
+fi
 # get-task-allow позволяет подключаться к процессу отладчиком и внедрять код
 for bundle in "$APP" "$APP"/Contents/XPCServices/*.xpc; do
   if codesign -d --entitlements - "$bundle" 2>/dev/null | grep -qF get-task-allow; then

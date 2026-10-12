@@ -49,6 +49,15 @@ enum MediaControllerType: String, CaseIterable, Identifiable, Defaults.Serializa
     case youtubeMusic = "YouTube Music"
     
     var id: String { self.rawValue }
+
+    var displayName: String {
+        switch self {
+        case .nowPlaying:
+            return String(localized: "Now Playing")
+        default:
+            return rawValue
+        }
+    }
 }
 
 // Sneak peek styles for selection in settings
@@ -57,6 +66,15 @@ enum SneakPeekStyle: String, CaseIterable, Identifiable, Defaults.Serializable {
     case inline = "Inline"
     
     var id: String { self.rawValue }
+
+    var displayName: String {
+        switch self {
+        case .standard:
+            return String(localized: "Default")
+        case .inline:
+            return String(localized: "Inline")
+        }
+    }
 }
 
 // Action to perform when Option (⌥) is held while pressing media keys
@@ -66,6 +84,17 @@ enum OptionKeyAction: String, CaseIterable, Identifiable, Defaults.Serializable 
     case none = "No Action"
 
     var id: String { self.rawValue }
+
+    var displayName: String {
+        switch self {
+        case .openSettings:
+            return String(localized: "Open System Settings")
+        case .showHUD:
+            return String(localized: "Show HUD")
+        case .none:
+            return String(localized: "No Action")
+        }
+    }
 }
 
 extension Defaults.Keys {

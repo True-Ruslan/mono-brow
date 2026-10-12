@@ -14,6 +14,10 @@ struct QuickShareProvider: Identifiable, Hashable, Sendable {
     var id: String
     var imageData: Data?
     var supportsRawText: Bool
+
+    var displayName: String {
+        id == "System Share Menu" ? String(localized: "System Share Menu") : id
+    }
 }
 
 class QuickShareService: ObservableObject {

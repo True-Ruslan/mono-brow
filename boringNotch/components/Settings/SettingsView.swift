@@ -430,7 +430,7 @@ struct HUD: View {
             Section {
                 Picker("Option key behaviour", selection: $optionKeyAction) {
                     ForEach(OptionKeyAction.allCases) { opt in
-                        Text(opt.rawValue).tag(opt)
+                        Text(opt.displayName).tag(opt)
                     }
                 }
                 
@@ -525,7 +525,7 @@ struct Media: View {
             Section {
                 Picker("Music Source", selection: $mediaController) {
                     ForEach(availableMediaControllers) { controller in
-                        Text(controller.rawValue).tag(controller)
+                        Text(controller.displayName).tag(controller)
                     }
                 }
                 .onChange(of: mediaController) { _, _ in
@@ -566,7 +566,7 @@ struct Media: View {
                 Toggle("Show sneak peek on playback changes", isOn: $enableSneakPeek)
                 Picker("Sneak Peek Style", selection: $sneakPeekStyles) {
                     ForEach(SneakPeekStyle.allCases) { style in
-                        Text(style.rawValue).tag(style)
+                        Text(style.displayName).tag(style)
                     }
                 }
                 HStack {
@@ -772,7 +772,7 @@ struct About: View {
                             Text("(\(Bundle.main.buildVersionNumber ?? ""))")
                                 .foregroundStyle(.secondary)
                         }
-                        Text(Bundle.main.releaseVersionNumber ?? "unkown")
+                        Text(Bundle.main.releaseVersionNumber ?? String(localized: "Unknown"))
                             .foregroundStyle(.secondary)
                     }
                     .onTapGesture {
@@ -889,7 +889,7 @@ struct Shelf: View {
                             }
                             .frame(width: 16, height: 16)
                             .foregroundColor(.accentColor)
-                            Text(provider.id)
+                            Text(provider.displayName)
                         }
                         .tag(provider.id)
                     }
@@ -910,7 +910,7 @@ struct Shelf: View {
                         .frame(width: 16, height: 16)
                         .foregroundColor(.accentColor)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Currently selected: \(selectedProvider.id)")
+                            Text("Currently selected: \(selectedProvider.displayName)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Text("Files dropped on the shelf will be shared via this service")
@@ -968,14 +968,15 @@ struct Appearance: View {
                 Defaults.Toggle(key: .coloredSpectrogram) {
                     Text("Colored spectrogram")
                 }
-                Defaults
-                    .Toggle("Player tinting", key: .playerColorTinting)
+                Defaults.Toggle(key: .playerColorTinting) {
+                    Text("Player tinting")
+                }
                 Defaults.Toggle(key: .lightingEffect) {
                     Text("Enable blur effect behind album art")
                 }
                 Picker("Slider color", selection: $sliderColor) {
                     ForEach(SliderColorEnum.allCases, id: \.self) { option in
-                        Text(option.rawValue)
+                        Text(option.displayName)
                     }
                 }
             } header: {
@@ -1108,7 +1109,7 @@ struct Appearance: View {
                         HStack {
                             Text("Speed")
                             Spacer(minLength: 80)
-                            Text("\(speed, specifier: "%.1f")s")
+                            Text("\(speed, specifier: "%.1f")×")
                                 .multilineTextAlignment(.trailing)
                                 .foregroundStyle(.secondary)
                             Slider(value: $speed, in: 0...2, step: 0.1)
@@ -1547,7 +1548,7 @@ func comingSoonTag() -> some View {
         .clipShape(.capsule)
 }
 
-func customBadge(text: String) -> some View {
+func customBadge(text: LocalizedStringKey) -> some View {
     Text(text)
         .foregroundStyle(.secondary)
         .font(.footnote.bold())
